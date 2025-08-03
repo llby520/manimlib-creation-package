@@ -1,0 +1,499 @@
+# 安全检查和依赖更新工作流
+# 用于定期检查安全漏洞和更新依赖
+
+name: Security and Dependencies
+
+# 触发条件
+on:
+  schedule:
+    # 每周一凌晨3点运行（UTC时间）
+    - cron: '0 3 * * 1'
+  push:
+    paths:
+      - 'requirements*.txt'
+      - 'pyproject.toml'
+      - 'setup*.py'
+      - '.github/workflows/security-and-deps.yml'
+  pull_request:
+    paths:
+      - 'requirements*.txt'
+      - 'pyproject.toml'
+      - 'setup*.py'
+  workflow_dispatch:
+    inputs:
+      force_update:
+        description: 'Force dependency updates'
+        required: false
+        type: boolean
+        default: false
+      security_only:
+        description: 'Only run security checks'
+        required: false
+        type: boolean
+        default: false
+
+# 环境变量
+env:
+  PYTHONUNBUFFERED: 1
+  PYTHONDONTWRITEBYTECODE: 1
+
+# 权限设置
+permissions:
+  contents: read
+  security-events: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  # 安全漏洞扫描
+  security-scan:
+    name: Security Vulnerability Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+        
+    - name: Install security tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install safety bandit semgrep pip-audit
+        
+    - name: Install project dependencies
+      run: |
+        # 安装项目依赖以进行完整扫描
+        pip install numpy>=1.19.0
+        
+        # 安装各包的依赖（如果存在）
+        for package_dir in animation_package compositionbuild_package creation_package; do
+          if [ -d "$package_dir" ] && [ -f "$package_dir/requirements.txt" ]; then
+            echo "Installing dependencies from $package_dir"
+            pip install -r "$package_dir/requirements.txt"
+          fi
+        done
+        
+    - name: Run Safety check (known vulnerabilities)
+      run: |
+        echo "=== Safety Check - Known Vulnerabilities ==="
+        safety check --json --output safety-report.json || true
+        safety check || echo "⚠️ Safety check found potential vulnerabilities"
+      continue-on-error: true
+      
+    - name: Run pip-audit (dependency vulnerabilities)
+      run: |
+        echo "=== Pip-audit - Dependency Vulnerabilities ==="
+        pip-audit --format=json --output=pip-audit-report.json || true
+        pip-audit || echo "⚠️ Pip-audit found potential vulnerabilities"
+      continue-on-error: true
+      
+    - name: Run Bandit (code security issues)
+      run: |
+        echo "=== Bandit - Code Security Analysis ==="
+        bandit -r . -f json -o bandit-report.json --exclude='./.git,./build,./dist' || true
+        bandit -r . --exclude='./.git,./build,./dist' || echo "⚠️ Bandit found potential security issues"
+      continue-on-error: true
+      
+    - name: Run Semgrep (static analysis)
+      run: |
+        echo "=== Semgrep - Static Security Analysis ==="
+        semgrep --config=auto --json --output=semgrep-report.json . || true
+        semgrep --config=auto . || echo "⚠️ Semgrep found potential issues"
+      continue-on-error: true
+      
+    - name: Generate security summary
+      run: |
+        echo "=== Security Scan Summary ===" > security-summary.md
+        echo "" >> security-summary.md
+        
+        echo "## 🔍 扫描结果" >> security-summary.md
+        echo "" >> security-summary.md
+        
+        # Safety 结果
+        if [ -f "safety-report.json" ]; then
+          SAFETY_ISSUES=$(jq length safety-report.json 2>/dev/null || echo "0")
+          echo "- **Safety**: $SAFETY_ISSUES 个已知漏洞" >> security-summary.md
+        fi
+        
+        # Pip-audit 结果
+        if [ -f "pip-audit-report.json" ]; then
+          PIP_AUDIT_ISSUES=$(jq '.vulnerabilities | length' pip-audit-report.json 2>/dev/null || echo "0")
+          echo "- **Pip-audit**: $PIP_AUDIT_ISSUES 个依赖漏洞" >> security-summary.md
+        fi
+        
+        # Bandit 结果
+        if [ -f "bandit-report.json" ]; then
+          BANDIT_HIGH=$(jq '.results | map(select(.issue_severity == "HIGH")) | length' bandit-report.json 2>/dev/null || echo "0")
+          BANDIT_MEDIUM=$(jq '.results | map(select(.issue_severity == "MEDIUM")) | length' bandit-report.json 2>/dev/null || echo "0")
+          echo "- **Bandit**: $BANDIT_HIGH 个高危, $BANDIT_MEDIUM 个中危问题" >> security-summary.md
+        fi
+        
+        # Semgrep 结果
+        if [ -f "semgrep-report.json" ]; then
+          SEMGREP_ISSUES=$(jq '.results | length' semgrep-report.json 2>/dev/null || echo "0")
+          echo "- **Semgrep**: $SEMGREP_ISSUES 个静态分析问题" >> security-summary.md
+        fi
+        
+        echo "" >> security-summary.md
+        echo "## 📋 建议" >> security-summary.md
+        echo "" >> security-summary.md
+        echo "1. 定期更新依赖包到最新安全版本" >> security-summary.md
+        echo "2. 关注高危和中危安全问题" >> security-summary.md
+        echo "3. 审查代码中的潜在安全风险" >> security-summary.md
+        echo "4. 使用虚拟环境隔离项目依赖" >> security-summary.md
+        
+        cat security-summary.md
+        
+    - name: Upload security reports
+      uses: actions/upload-artifact@v3
+      with:
+        name: security-reports
+        path: |
+          *-report.json
+          security-summary.md
+        retention-days: 30
+      if: always()
+
+  # 依赖检查和更新
+  dependency-check:
+    name: Dependency Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.event.inputs.security_only != 'true'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+        
+    - name: Install dependency tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install pip-tools pipdeptree outdated
+        
+    - name: Analyze current dependencies
+      run: |
+        echo "=== Current Dependency Analysis ==="
+        
+        # 安装当前依赖
+        pip install numpy>=1.19.0
+        
+        # 显示依赖树
+        echo "## 依赖树:"
+        pipdeptree
+        
+        echo "## 过时的包:"
+        pip list --outdated
+        
+        # 检查各包目录的依赖
+        for package_dir in animation_package compositionbuild_package creation_package; do
+          if [ -d "$package_dir" ]; then
+            echo "\n=== $package_dir Dependencies ==="
+            
+            if [ -f "$package_dir/requirements.txt" ]; then
+              echo "Requirements.txt:"
+              cat "$package_dir/requirements.txt"
+            fi
+            
+            if [ -f "$package_dir/pyproject.toml" ]; then
+              echo "Pyproject.toml dependencies:"
+              grep -A 10 "\[project.dependencies\]" "$package_dir/pyproject.toml" || true
+            fi
+          fi
+        done
+        
+    - name: Check for dependency updates
+      run: |
+        echo "=== Checking for Dependency Updates ==="
+        
+        # 创建依赖更新报告
+        echo "# 依赖更新报告" > dependency-update-report.md
+        echo "" >> dependency-update-report.md
+        echo "生成时间: $(date)" >> dependency-update-report.md
+        echo "" >> dependency-update-report.md
+        
+        # 检查 NumPy 更新
+        echo "## 🔍 核心依赖检查" >> dependency-update-report.md
+        echo "" >> dependency-update-report.md
+        
+        CURRENT_NUMPY=$(python -c "import numpy; print(numpy.__version__)")
+        LATEST_NUMPY=$(pip index versions numpy | head -1 | cut -d' ' -f2 | tr -d '()')
+        
+        echo "- **NumPy**: 当前 $CURRENT_NUMPY, 最新 $LATEST_NUMPY" >> dependency-update-report.md
+        
+        if [ "$CURRENT_NUMPY" != "$LATEST_NUMPY" ]; then
+          echo "  - ⚠️ 有新版本可用" >> dependency-update-report.md
+        else
+          echo "  - ✅ 已是最新版本" >> dependency-update-report.md
+        fi
+        
+        echo "" >> dependency-update-report.md
+        echo "## 📦 开发依赖建议" >> dependency-update-report.md
+        echo "" >> dependency-update-report.md
+        echo "建议定期更新以下开发依赖:" >> dependency-update-report.md
+        echo "- pytest (测试框架)" >> dependency-update-report.md
+        echo "- black (代码格式化)" >> dependency-update-report.md
+        echo "- mypy (类型检查)" >> dependency-update-report.md
+        echo "- flake8 (代码风格检查)" >> dependency-update-report.md
+        echo "- bandit (安全检查)" >> dependency-update-report.md
+        
+        cat dependency-update-report.md
+        
+    - name: Generate dependency update suggestions
+      run: |
+        echo "=== Dependency Update Suggestions ===" > update-suggestions.md
+        echo "" >> update-suggestions.md
+        
+        echo "## 🔄 建议的更新命令" >> update-suggestions.md
+        echo "" >> update-suggestions.md
+        echo "### 核心依赖更新" >> update-suggestions.md
+        echo "\`\`\`bash" >> update-suggestions.md
+        echo "pip install --upgrade numpy" >> update-suggestions.md
+        echo "\`\`\`" >> update-suggestions.md
+        echo "" >> update-suggestions.md
+        
+        echo "### 开发依赖更新" >> update-suggestions.md
+        echo "\`\`\`bash" >> update-suggestions.md
+        echo "pip install --upgrade pytest black mypy flake8 bandit" >> update-suggestions.md
+        echo "pip install --upgrade pip-tools pipdeptree safety" >> update-suggestions.md
+        echo "\`\`\`" >> update-suggestions.md
+        echo "" >> update-suggestions.md
+        
+        echo "### 包构建工具更新" >> update-suggestions.md
+        echo "\`\`\`bash" >> update-suggestions.md
+        echo "pip install --upgrade build twine wheel setuptools" >> update-suggestions.md
+        echo "\`\`\`" >> update-suggestions.md
+        
+        cat update-suggestions.md
+        
+    - name: Upload dependency reports
+      uses: actions/upload-artifact@v3
+      with:
+        name: dependency-reports
+        path: |
+          dependency-update-report.md
+          update-suggestions.md
+        retention-days: 30
+
+  # 兼容性测试
+  compatibility-test:
+    name: Compatibility Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    if: github.event.inputs.security_only != 'true'
+    
+    strategy:
+      matrix:
+        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
+        numpy-version: ['1.19.*', '1.21.*', '1.24.*', 'latest']
+        exclude:
+          # Python 3.12 与某些旧版本 NumPy 不兼容
+          - python-version: '3.12'
+            numpy-version: '1.19.*'
+          - python-version: '3.12'
+            numpy-version: '1.21.*'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+        
+    - name: Install NumPy ${{ matrix.numpy-version }}
+      run: |
+        python -m pip install --upgrade pip
+        
+        if [ "${{ matrix.numpy-version }}" = "latest" ]; then
+          pip install numpy
+        else
+          pip install "numpy==${{ matrix.numpy-version }}"
+        fi
+        
+    - name: Test module compatibility
+      run: |
+        echo "Testing Python ${{ matrix.python-version }} with NumPy ${{ matrix.numpy-version }}"
+        
+        python -c "
+        import sys
+        import numpy as np
+        print(f'Python: {sys.version}')
+        print(f'NumPy: {np.__version__}')
+        
+        # 测试模块导入
+        modules_tested = []
+        
+        try:
+            import animation
+            print(f'✅ Animation v{animation.__version__} - Compatible')
+            modules_tested.append('animation')
+        except Exception as e:
+            print(f'❌ Animation - Error: {e}')
+        
+        try:
+            import composition
+            print(f'✅ Composition v{composition.__version__} - Compatible')
+            modules_tested.append('composition')
+        except Exception as e:
+            print(f'❌ Composition - Error: {e}')
+        
+        try:
+            import creation
+            print(f'✅ Creation v{creation.__version__} - Compatible')
+            modules_tested.append('creation')
+        except Exception as e:
+            print(f'❌ Creation - Error: {e}')
+        
+        print(f'\nCompatibility Summary: {len(modules_tested)}/3 modules compatible')
+        "
+      continue-on-error: true
+
+  # 创建问题报告
+  create-issue:
+    name: Create Security/Dependency Issue
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [security-scan, dependency-check]
+    if: always() && github.event_name == 'schedule'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Download reports
+      uses: actions/download-artifact@v3
+      with:
+        path: reports/
+      continue-on-error: true
+      
+    - name: Check if issue needed
+      id: check-issue
+      run: |
+        NEED_ISSUE="false"
+        ISSUE_TITLE=""
+        ISSUE_BODY=""
+        
+        # 检查是否有安全问题
+        if [ -f "reports/security-reports/security-summary.md" ]; then
+          if grep -q "个已知漏洞\|个依赖漏洞\|个高危" reports/security-reports/security-summary.md; then
+            NEED_ISSUE="true"
+            ISSUE_TITLE="🔒 安全漏洞检测报告 - $(date +%Y-%m-%d)"
+          fi
+        fi
+        
+        # 检查是否有依赖更新
+        if [ -f "reports/dependency-reports/dependency-update-report.md" ]; then
+          if grep -q "有新版本可用" reports/dependency-reports/dependency-update-report.md; then
+            if [ "$NEED_ISSUE" = "false" ]; then
+              NEED_ISSUE="true"
+              ISSUE_TITLE="📦 依赖更新建议 - $(date +%Y-%m-%d)"
+            else
+              ISSUE_TITLE="🔒📦 安全和依赖更新报告 - $(date +%Y-%m-%d)"
+            fi
+          fi
+        fi
+        
+        echo "need-issue=$NEED_ISSUE" >> $GITHUB_OUTPUT
+        echo "issue-title=$ISSUE_TITLE" >> $GITHUB_OUTPUT
+        
+    - name: Create issue
+      if: steps.check-issue.outputs.need-issue == 'true'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+          
+          let body = '# 自动安全和依赖检查报告\n\n';
+          body += `生成时间: ${new Date().toISOString()}\n\n`;
+          
+          // 添加安全报告
+          try {
+            const securitySummary = fs.readFileSync('reports/security-reports/security-summary.md', 'utf8');
+            body += '## 🔒 安全检查结果\n\n';
+            body += securitySummary + '\n\n';
+          } catch (e) {
+            console.log('No security summary found');
+          }
+          
+          // 添加依赖报告
+          try {
+            const depReport = fs.readFileSync('reports/dependency-reports/dependency-update-report.md', 'utf8');
+            body += '## 📦 依赖检查结果\n\n';
+            body += depReport + '\n\n';
+          } catch (e) {
+            console.log('No dependency report found');
+          }
+          
+          // 添加更新建议
+          try {
+            const updateSuggestions = fs.readFileSync('reports/dependency-reports/update-suggestions.md', 'utf8');
+            body += '## 🔄 更新建议\n\n';
+            body += updateSuggestions + '\n\n';
+          } catch (e) {
+            console.log('No update suggestions found');
+          }
+          
+          body += '## 📋 处理建议\n\n';
+          body += '1. 审查上述安全和依赖问题\n';
+          body += '2. 优先处理高危安全漏洞\n';
+          body += '3. 测试依赖更新的兼容性\n';
+          body += '4. 更新相关文档和测试\n\n';
+          body += '---\n';
+          body += '*此报告由 GitHub Actions 自动生成*';
+          
+          await github.rest.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: '${{ steps.check-issue.outputs.issue-title }}',
+            body: body,
+            labels: ['security', 'dependencies', 'automated']
+          });
+
+  # 总结
+  summary:
+    name: Security and Dependencies Summary
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [security-scan, dependency-check, compatibility-test]
+    if: always()
+    
+    steps:
+    - name: Generate summary
+      run: |
+        echo "=== Security and Dependencies Summary ==="
+        echo "Security Scan: ${{ needs.security-scan.result }}"
+        echo "Dependency Check: ${{ needs.dependency-check.result }}"
+        echo "Compatibility Test: ${{ needs.compatibility-test.result }}"
+        
+        if [[ "${{ needs.security-scan.result }}" == "success" ]]; then
+          echo "✅ 安全扫描完成"
+        else
+          echo "⚠️ 安全扫描发现问题或失败"
+        fi
+        
+        if [[ "${{ needs.dependency-check.result }}" == "success" ]]; then
+          echo "✅ 依赖检查完成"
+        else
+          echo "⚠️ 依赖检查发现问题或失败"
+        fi
+        
+        if [[ "${{ needs.compatibility-test.result }}" == "success" ]]; then
+          echo "✅ 兼容性测试通过"
+        else
+          echo "⚠️ 兼容性测试发现问题"
+        fi
+        
+        echo "\n📊 建议定期运行此工作流以保持项目安全性和依赖的最新状态。"

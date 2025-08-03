@@ -41,8 +41,8 @@
 #### 方法一：从GitHub直接安装
 ```bash
 # 克隆仓库
-git clone https://github.com/llby520/manimlib-creation-package.git
-cd manimlib-creation-package/creation_package/creationbuild_package
+git clone https://github.com/llby520/manimLibfuke.git
+cd manimLibfuke/creation_package/creationbuild_package
 
 # 安装依赖
 pip install -r requirements_creation.txt
@@ -54,8 +54,8 @@ pip install .
 #### 方法二：开发模式安装
 ```bash
 # 克隆仓库
-git clone https://github.com/llby520/manimlib-creation-package.git
-cd manimlib-creation-package/creation_package/creationbuild_package
+git clone https://github.com/llby520/manimLibfuke.git
+cd manimLibfuke/creation_package/creationbuild_package
 
 # 开发模式安装
 pip install -e .
@@ -177,10 +177,10 @@ MIT License - 详见文件头部说明
 
 ## 🔗 项目链接
 
-- **GitHub仓库**: https://github.com/llby520/manimlib-creation-package
-- **问题反馈**: https://github.com/llby520/manimlib-creation-package/issues
-- **发布页面**: https://github.com/llby520/manimlib-creation-package/releases
-- **项目文档**: https://github.com/llby520/manimlib-creation-package/wiki
+- **GitHub仓库**: https://github.com/llby520/manimLibfuke
+- **问题反馈**: https://github.com/llby520/manimLibfuke/issues
+- **发布页面**: https://github.com/llby520/manimLibfuke/releases
+- **项目文档**: https://github.com/llby520/manimLibfuke/wiki
 
 ---
 

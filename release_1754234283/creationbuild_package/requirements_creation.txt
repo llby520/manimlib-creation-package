@@ -29,13 +29,13 @@ numpy>=1.19.0,<3.0.0
 # 4. 如果遇到pkg_resources警告，这是正常的，已被自动过滤
 
 # 项目信息:
-# GitHub仓库: https://github.com/llby520/manimlib-creation-package
-# 问题反馈: https://github.com/llby520/manimlib-creation-package/issues
-# 发布页面: https://github.com/llby520/manimlib-creation-package/releases
+# GitHub仓库: https://github.com/llby520/manimLibfuke
+# 问题反馈: https://github.com/llby520/manimLibfuke/issues
+# 发布页面: https://github.com/llby520/manimLibfuke/releases
 
 # 安装命令:
-# git clone https://github.com/llby520/manimlib-creation-package.git
-# cd manimlib-creation-package/creation_package/creationbuild_package
+# git clone https://github.com/llby520/manimLibfuke.git
+# cd manimLibfuke/creation_package/creationbuild_package
 # pip install -r requirements_creation.txt
 # pip install .
 

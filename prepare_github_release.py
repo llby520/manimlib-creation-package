@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
-GitHub 发布准备脚本
+GitHub Release Preparation Script
+ManimLib Creation Package - Enhanced Version
 
-这个脚本帮助准备 manimlib-creation 包的 GitHub 发布。
-它会检查所有必要的文件，验证配置，并提供发布指导。
-
-使用方法:
-    python prepare_github_release.py
+This script prepares the project for GitHub release by:
+1. Checking all required files
+2. Validating configurations
+3. Running tests
+4. Creating release artifacts
+5. Providing release guidance
+6. Auto-installing dependencies
+7. Creating complete startup environment
 """
 
 import os
@@ -14,11 +19,15 @@ import sys
 import json
 import subprocess
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List, Dict, Tuple, Optional
+import shutil
+import zipfile
+from datetime import datetime
+import importlib.util
 
 
 class GitHubReleasePreparator:
-    """GitHub 发布准备器"""
+    """GitHub 发布准备器 - 增强版"""
     
     def __init__(self, project_root: str = None):
         self.project_root = Path(project_root or os.getcwd())
@@ -26,6 +35,104 @@ class GitHubReleasePreparator:
         self.errors = []
         self.warnings = []
         self.success_items = []
+        self.dependency_manager = None
+        
+    def log_error(self, message: str):
+        """记录错误"""
+        self.errors.append(message)
+        print(f"❌ 错误: {message}")
+        
+    def log_warning(self, message: str):
+        """记录警告"""
+        self.warnings.append(message)
+        print(f"⚠️  警告: {message}")
+        
+    def log_success(self, message: str):
+        """记录成功"""
+        self.success_items.append(message)
+        print(f"✅ {message}")
+    
+    def initialize_dependency_manager(self) -> bool:
+        """初始化依赖管理器"""
+        try:
+            # 尝试导入依赖管理器
+            spec = importlib.util.spec_from_file_location(
+                "dependency_manager", 
+                self.project_root / "dependency_manager.py"
+            )
+            if spec and spec.loader:
+                dm_module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(dm_module)
+                self.dependency_manager = dm_module.DependencyManager(verbose=False)
+                self.log_success("依赖管理器初始化成功")
+                return True
+        except Exception as e:
+            self.log_warning(f"依赖管理器初始化失败: {e}")
+        return False
+    
+    def check_and_install_dependencies(self) -> None:
+        """检查并安装依赖"""
+        print("\n🔍 检查项目依赖...")
+        
+        if not self.initialize_dependency_manager():
+            self.log_warning("无法初始化依赖管理器，跳过依赖检查")
+            return
+        
+        try:
+            # 检查核心依赖
+            core_deps = ['manim', 'numpy', 'matplotlib', 'pillow']
+            missing_deps = []
+            
+            for dep in core_deps:
+                try:
+                    __import__(dep)
+                    self.log_success(f"依赖 {dep} 已安装")
+                except ImportError:
+                    missing_deps.append(dep)
+                    self.log_warning(f"缺少依赖: {dep}")
+            
+            # 自动安装缺失的依赖
+            if missing_deps and self.dependency_manager:
+                print(f"\n🔧 尝试自动安装缺失的依赖: {missing_deps}")
+                for dep in missing_deps:
+                    if self.dependency_manager.install_package(dep):
+                        self.log_success(f"成功安装依赖: {dep}")
+                    else:
+                        self.log_error(f"安装依赖失败: {dep}")
+            
+        except Exception as e:
+            self.log_error(f"依赖检查过程出错: {e}")
+    
+    def check_python_environment(self) -> None:
+        """检查 Python 环境"""
+        print("\n🔍 检查 Python 环境...")
+        
+        # 检查 Python 版本
+        python_version = sys.version_info
+        if python_version >= (3, 8):
+            self.log_success(f"Python 版本: {python_version.major}.{python_version.minor}.{python_version.micro}")
+        else:
+            self.log_error(f"Python 版本过低: {python_version.major}.{python_version.minor}，需要 3.8+")
+        
+        # 检查虚拟环境
+        if hasattr(sys, 'real_prefix') or (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix):
+            self.log_success("运行在虚拟环境中")
+        else:
+            self.log_warning("未使用虚拟环境，建议使用虚拟环境")
+        
+        # 检查包管理工具
+        try:
+            import pip
+            self.log_success(f"pip 版本: {pip.__version__}")
+        except ImportError:
+            self.log_error("pip 未安装")
+        
+        # 检查构建工具
+        try:
+            import build
+            self.log_success("build 工具已安装")
+        except ImportError:
+            self.log_warning("build 工具未安装，运行: pip install build")
     
     def check_file_exists(self, file_path: Path, description: str) -> bool:
         """检查文件是否存在"""
@@ -199,7 +306,7 @@ class GitHubReleasePreparator:
             'git commit -m "Initial commit: Manimlib Creation Package"',
             "",
             "# 2. 添加远程仓库",
-            "git remote add origin https://github.com/llby520/manimLibfuke.git",
+            "git remote add origin https://github.com/llby520/manimlib-creation-package.git",
             "",
             "# 3. 推送到 GitHub",
             "git branch -M main",
@@ -217,15 +324,266 @@ class GitHubReleasePreparator:
         for cmd in commands:
             print(f"  {cmd}")
     
+    def create_release_package(self) -> None:
+        """创建完整发布包"""
+        print("\n📦 创建完整发布包...")
+        
+        # 创建发布目录
+        import time
+        timestamp = int(time.time())
+        release_dir = self.project_root / f"release_{timestamp}"
+        
+        # 确保目录不存在冲突
+        counter = 0
+        while release_dir.exists():
+            counter += 1
+            release_dir = self.project_root / f"release_{timestamp}_{counter}"
+        
+        release_dir.mkdir(exist_ok=True)
+        print(f"✅ 创建发布目录: {release_dir.name}")
+        
+        # 复制核心文件
+        core_files = [
+            "creation.py",
+            "README.md",
+            "LICENSE",
+            "pyproject.toml",
+            "requirements_creation.txt",
+            "setup_creation.py",
+            "auto_setup.py",
+            "dependency_manager.py",
+            "STARTUP_GUIDE.md"
+        ]
+        
+        for file_name in core_files:
+            src_file = self.project_root / file_name
+            if src_file.exists():
+                shutil.copy2(src_file, release_dir / file_name)
+                self.log_success(f"复制文件: {file_name}")
+            else:
+                self.log_warning(f"文件不存在: {file_name}")
+        
+        # 复制构建包目录
+        build_dir = self.project_root / "creationbuild_package"
+        if build_dir.exists():
+            shutil.copytree(build_dir, release_dir / "creationbuild_package")
+            self.log_success("复制构建包目录")
+        
+        # 复制GitHub工作流
+        github_dir = self.project_root / ".github"
+        if github_dir.exists():
+            shutil.copytree(github_dir, release_dir / ".github")
+            self.log_success("复制GitHub工作流")
+        
+        # 创建示例目录
+        examples_dir = release_dir / "examples"
+        examples_dir.mkdir(exist_ok=True)
+        
+        # 创建快速开始脚本
+        self.create_quick_start_script(release_dir)
+        
+        # 创建安装验证脚本
+        self.create_installation_test(release_dir)
+        
+        # 创建压缩包
+        zip_path = self.project_root / f"manimlib-creation-release-{datetime.now().strftime('%Y%m%d')}.zip"
+        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            for file_path in release_dir.rglob('*'):
+                if file_path.is_file():
+                    arcname = file_path.relative_to(release_dir)
+                    zipf.write(file_path, arcname)
+        
+        self.log_success(f"创建发布包: {zip_path.name}")
+    
+    def create_quick_start_script(self, release_dir: Path) -> None:
+        """创建快速开始脚本"""
+        quick_start_content = '''#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+ManimLib Creation Package - 快速开始脚本
+
+这个脚本帮助您快速开始使用 ManimLib Creation Package。
+它会自动检查环境、安装依赖并运行示例。
+"""
+
+import sys
+import subprocess
+from pathlib import Path
+
+def main():
+    print("🚀 ManimLib Creation Package - 快速开始")
+    print("=" * 50)
+    
+    # 检查Python版本
+    if sys.version_info < (3, 8):
+        print("❌ Python版本过低，需要3.8+")
+        return 1
+    
+    print(f"✅ Python版本: {sys.version_info.major}.{sys.version_info.minor}")
+    
+    # 运行自动设置
+    print("\n🔧 运行自动设置...")
+    try:
+        result = subprocess.run([sys.executable, "auto_setup.py"], check=True)
+        print("✅ 自动设置完成")
+    except subprocess.CalledProcessError:
+        print("⚠️ 自动设置遇到问题，但可以继续")
+    
+    # 测试导入
+    print("\n🧪 测试模块导入...")
+    try:
+        import creation
+        print("✅ creation 模块导入成功")
+        
+        # 运行自测试
+        if hasattr(creation, '_module_self_test'):
+            creation._module_self_test()
+            print("✅ 模块自测试通过")
+    except Exception as e:
+        print(f"❌ 模块测试失败: {e}")
+        return 1
+    
+    print("\n🎉 快速开始完成！")
+    print("\n下一步:")
+    print("1. 查看 STARTUP_GUIDE.md 了解详细使用方法")
+    print("2. 运行 examples/ 目录下的示例")
+    print("3. 开始创建您的动画！")
+    
+    return 0
+
+if __name__ == "__main__":
+    sys.exit(main())
+'''
+        
+        quick_start_path = release_dir / "quick_start.py"
+        with open(quick_start_path, "w", encoding="utf-8") as f:
+            f.write(quick_start_content)
+        self.log_success("创建快速开始脚本")
+    
+    def create_installation_test(self, release_dir: Path) -> None:
+        """创建安装验证脚本"""
+        test_content = '''#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+ManimLib Creation Package - 安装验证脚本
+
+这个脚本验证包是否正确安装并可以正常使用。
+"""
+
+import sys
+import traceback
+from typing import List, Tuple
+
+def test_basic_imports() -> Tuple[bool, str]:
+    """测试基本导入"""
+    try:
+        import numpy
+        import creation
+        return True, "基本导入测试通过"
+    except Exception as e:
+        return False, f"基本导入失败: {e}"
+
+def test_manim_availability() -> Tuple[bool, str]:
+    """测试Manim可用性"""
+    manim_packages = ['manimlib', 'manim', 'manimce', 'manimgl']
+    available = []
+    
+    for package in manim_packages:
+        try:
+            __import__(package)
+            available.append(package)
+        except ImportError:
+            continue
+    
+    if available:
+        return True, f"找到Manim包: {', '.join(available)}"
+    else:
+        return False, "未找到任何Manim包"
+
+def test_creation_functions() -> Tuple[bool, str]:
+    """测试creation模块功能"""
+    try:
+        import creation
+        
+        # 检查主要类是否存在
+        required_classes = [
+            'ShowCreation', 'Write', 'DrawBorderThenFill',
+            'Uncreate', 'ShowSubmobjectsOneByOne'
+        ]
+        
+        missing = []
+        for cls_name in required_classes:
+            if not hasattr(creation, cls_name):
+                missing.append(cls_name)
+        
+        if missing:
+            return False, f"缺少类: {', '.join(missing)}"
+        
+        # 运行自测试
+        if hasattr(creation, '_module_self_test'):
+            creation._module_self_test()
+        
+        return True, "creation模块功能测试通过"
+    except Exception as e:
+        return False, f"creation模块测试失败: {e}"
+
+def run_all_tests() -> None:
+    """运行所有测试"""
+    print("🧪 ManimLib Creation Package - 安装验证")
+    print("=" * 50)
+    
+    tests = [
+        ("基本导入测试", test_basic_imports),
+        ("Manim可用性测试", test_manim_availability),
+        ("Creation功能测试", test_creation_functions)
+    ]
+    
+    passed = 0
+    total = len(tests)
+    
+    for test_name, test_func in tests:
+        print(f"\n🔍 {test_name}...")
+        try:
+            success, message = test_func()
+            if success:
+                print(f"✅ {message}")
+                passed += 1
+            else:
+                print(f"❌ {message}")
+        except Exception as e:
+            print(f"❌ 测试异常: {e}")
+            traceback.print_exc()
+    
+    print(f"\n📊 测试结果: {passed}/{total} 通过")
+    
+    if passed == total:
+        print("🎉 所有测试通过！安装成功！")
+        return 0
+    else:
+        print("⚠️ 部分测试失败，请检查安装")
+        return 1
+
+if __name__ == "__main__":
+    sys.exit(run_all_tests())
+'''
+        
+        test_path = release_dir / "test_installation.py"
+        with open(test_path, "w", encoding="utf-8") as f:
+            f.write(test_content)
+        self.log_success("创建安装验证脚本")
+    
     def run_checks(self) -> None:
         """运行所有检查"""
-        print("🎯 Manimlib Creation Package - GitHub 发布准备")
+        print("🎯 Manimlib Creation Package - GitHub 发布准备 (增强版)")
         print("="*60)
         
+        self.check_python_environment()
+        self.check_and_install_dependencies()
         self.check_directory_structure()
         self.check_pyproject_toml()
         self.check_git_status()
         self.check_package_build()
+        self.create_release_package()
         
         # 显示结果
         print("\n📊 检查结果:")

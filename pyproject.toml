@@ -58,11 +58,11 @@ test = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/llby520/manimLibfuke"
-Documentation = "https://github.com/llby520/manimLibfuke/wiki"
-Repository = "https://github.com/llby520/manimLibfuke.git"
-"Bug Tracker" = "https://github.com/llby520/manimLibfuke/issues"
-Changelog = "https://github.com/llby520/manimLibfuke/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/llby520/manimlib-creation-package"
+Documentation = "https://github.com/llby520/manimlib-creation-package/wiki"
+Repository = "https://github.com/llby520/manimlib-creation-package.git"
+"Bug Tracker" = "https://github.com/llby520/manimlib-creation-package/issues"
+Changelog = "https://github.com/llby520/manimlib-creation-package/blob/main/CHANGELOG.md"
 
 [tool.setuptools]
 py-modules = ["creation"]

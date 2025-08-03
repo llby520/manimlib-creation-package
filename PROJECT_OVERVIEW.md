@@ -315,10 +315,10 @@ flake8 creation.py
 ## 📞 支持和联系
 
 ### 🔗 相关链接
-- **项目主页**: [GitHub Repository](https://github.com/manimlib/creation)
+- **项目主页**: [GitHub Repository](https://github.com/llby520/manimlib-creation-package)
 - **文档站点**: [Documentation](https://manimlib-creation.readthedocs.io/)
-- **问题跟踪**: [GitHub Issues](https://github.com/manimlib/creation/issues)
-- **讨论区**: [GitHub Discussions](https://github.com/manimlib/creation/discussions)
+- **问题跟踪**: [GitHub Issues](https://github.com/llby520/manimlib-creation-package/issues)
+- **讨论区**: [GitHub Discussions](https://github.com/llby520/manimlib-creation-package/discussions)
 
 ### 📧 联系方式
 - **邮箱**: team@manimlib.org

@@ -1,0 +1,300 @@
+# GitHub Actions 工作流模板
+# 这是一个可定制的模板，用于创建新的工作流
+
+name: Custom Workflow Template
+
+# 🔧 触发条件配置
+# 根据需要修改以下触发条件
+on:
+  push:
+    branches: [ main, develop ]  # 修改为您的分支名称
+    paths:
+      - '*.py'                   # 监控的文件类型
+      - 'requirements*.txt'
+      - 'pyproject.toml'
+  pull_request:
+    branches: [ main ]
+  schedule:
+    - cron: '0 2 * * *'          # 定时运行：每天凌晨2点
+  workflow_dispatch:             # 允许手动触发
+    inputs:
+      custom_param:
+        description: '自定义参数'
+        required: false
+        type: string
+        default: 'default_value'
+
+# 🌍 环境变量
+env:
+  PYTHONUNBUFFERED: 1
+  PYTHONDONTWRITEBYTECODE: 1
+  # 添加您的自定义环境变量
+  CUSTOM_ENV_VAR: 'custom_value'
+
+# 🔐 权限设置
+permissions:
+  contents: read               # 根据需要调整权限
+  # issues: write
+  # pull-requests: write
+  # security-events: write
+
+# 🚦 并发控制
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # 📋 作业模板 1: 基础检查
+  basic-checks:
+    name: Basic Checks
+    runs-on: ubuntu-latest     # 可选: windows-latest, macos-latest
+    timeout-minutes: 10        # 根据需要调整超时时间
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'  # 修改为您需要的 Python 版本
+        cache: 'pip'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        # 安装您的项目依赖
+        pip install numpy>=1.19.0
+        # pip install -r requirements.txt
+        
+    - name: Run basic checks
+      run: |
+        echo "=== 基础检查 ==="
+        python --version
+        pip list
+        
+        # 添加您的检查命令
+        python -c "import sys; print(f'Python: {sys.version}')"
+        
+        # 示例：模块导入测试
+        # python -c "import your_module; print('模块导入成功')"
+        
+    - name: Custom step
+      run: |
+        echo "自定义步骤"
+        echo "参数值: ${{ github.event.inputs.custom_param }}"
+        # 添加您的自定义逻辑
+      continue-on-error: true    # 允许此步骤失败而不影响整个作业
+
+  # 📋 作业模板 2: 多版本测试
+  multi-version-test:
+    name: Test Python ${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    
+    strategy:
+      fail-fast: false          # 不因单个测试失败而停止所有测试
+      matrix:
+        os: [ubuntu-latest]      # 根据需要添加: windows-latest, macos-latest
+        python-version: ['3.9', '3.10', '3.11']  # 修改为您支持的版本
+        # 可以添加其他矩阵维度
+        # dependency-version: ['1.0', '2.0']
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: 'pip'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        # 根据矩阵参数安装不同版本的依赖
+        pip install numpy>=1.19.0
+        
+    - name: Run tests
+      run: |
+        echo "测试 Python ${{ matrix.python-version }} on ${{ matrix.os }}"
+        # 添加您的测试命令
+        # python -m pytest
+        # python -m unittest discover
+        
+        # 示例测试
+        python -c "
+        import sys
+        print(f'Python: {sys.version}')
+        print('测试通过')
+        "
+
+  # 📋 作业模板 3: 条件执行
+  conditional-job:
+    name: Conditional Job
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # 只在特定条件下运行
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [basic-checks]        # 依赖其他作业完成
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Conditional step
+      if: contains(github.event.head_commit.message, '[deploy]')
+      run: |
+        echo "检测到部署标记，执行部署相关任务"
+        # 添加部署逻辑
+        
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: build-artifacts
+        path: |
+          dist/
+          build/
+        retention-days: 7        # 保留天数
+      if: always()               # 即使前面步骤失败也上传
+
+  # 📋 作业模板 4: 使用 Secrets
+  secure-job:
+    name: Secure Operations
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # 只在受保护的环境中运行
+    environment: production      # 需要在 GitHub 设置中配置环境
+    if: github.event_name == 'release'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Use secrets
+      run: |
+        echo "使用加密的 secrets"
+        # 注意：不要在日志中输出 secrets 的值
+        # echo "API Key: ${{ secrets.API_KEY }}"  # ❌ 错误做法
+        
+        if [ -n "${{ secrets.API_KEY }}" ]; then
+          echo "✅ API Key 已配置"
+        else
+          echo "❌ API Key 未配置"
+        fi
+      env:
+        API_KEY: ${{ secrets.API_KEY }}  # 通过环境变量使用 secrets
+
+  # 📋 作业模板 5: 外部服务集成
+  external-service:
+    name: External Service Integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    # 使用服务容器
+    services:
+      redis:
+        image: redis:latest
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Test service connection
+      run: |
+        # 测试与服务容器的连接
+        sudo apt-get update
+        sudo apt-get install -y redis-tools
+        redis-cli -h localhost ping
+        
+    - name: Integration tests
+      run: |
+        echo "运行集成测试"
+        # 添加与外部服务的集成测试
+
+  # 📋 作业模板 6: 结果汇总
+  summary:
+    name: Workflow Summary
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [basic-checks, multi-version-test, conditional-job]
+    if: always()                 # 总是运行，即使前面的作业失败
+    
+    steps:
+    - name: Generate summary
+      run: |
+        echo "=== 工作流执行摘要 ==="
+        echo "Basic Checks: ${{ needs.basic-checks.result }}"
+        echo "Multi-version Test: ${{ needs.multi-version-test.result }}"
+        echo "Conditional Job: ${{ needs.conditional-job.result }}"
+        
+        # 根据结果设置状态
+        if [[ "${{ needs.basic-checks.result }}" == "success" && "${{ needs.multi-version-test.result }}" == "success" ]]; then
+          echo "✅ 工作流执行成功"
+          echo "status=success" >> $GITHUB_OUTPUT
+        else
+          echo "❌ 工作流执行失败"
+          echo "status=failure" >> $GITHUB_OUTPUT
+        fi
+        
+    - name: Create issue on failure
+      if: needs.basic-checks.result == 'failure' || needs.multi-version-test.result == 'failure'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const title = `工作流失败 - ${context.workflow} (${context.sha.substring(0, 7)})`;
+          const body = `
+          # 工作流执行失败
+          
+          **工作流**: ${context.workflow}
+          **分支**: ${context.ref}
+          **提交**: ${context.sha}
+          **触发者**: ${context.actor}
+          
+          ## 失败的作业
+          
+          - Basic Checks: ${{ needs.basic-checks.result }}
+          - Multi-version Test: ${{ needs.multi-version-test.result }}
+          
+          请检查工作流日志并修复相关问题。
+          
+          [查看工作流运行](${context.payload.repository.html_url}/actions/runs/${context.runId})
+          `;
+          
+          await github.rest.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: title,
+            body: body,
+            labels: ['bug', 'ci-failure']
+          });
+
+# 📝 使用说明
+#
+# 1. 复制此模板并重命名为您的工作流名称
+# 2. 修改触发条件、环境变量和权限设置
+# 3. 根据需要添加、删除或修改作业
+# 4. 配置必要的 Secrets 和环境
+# 5. 测试工作流并根据需要进行调整
+#
+# 💡 提示:
+# - 使用 `continue-on-error: true` 允许步骤失败
+# - 使用 `if` 条件控制作业和步骤的执行
+# - 使用 `needs` 定义作业依赖关系
+# - 使用 `strategy.matrix` 进行多维度测试
+# - 使用 `timeout-minutes` 防止作业无限运行
+# - 使用 `upload-artifact` 保存构建产物
+# - 使用 `environment` 保护敏感操作
+#
+# 🔗 参考资源:
+# - GitHub Actions 文档: https://docs.github.com/en/actions
+# - 工作流语法: https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions
+# - 可用的 Actions: https://github.com/marketplace?type=actions

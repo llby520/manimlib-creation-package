@@ -1,0 +1,152 @@
+# 快速测试工作流
+# 用于快速验证代码更改的基本功能
+
+name: Quick Test
+
+# 触发条件
+on:
+  push:
+    branches: [ feature/*, hotfix/* ]
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+# 环境变量
+env:
+  PYTHONUNBUFFERED: 1
+  PYTHONDONTWRITEBYTECODE: 1
+
+# 并发控制
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # 快速语法检查
+  syntax-check:
+    name: Syntax Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Check Python syntax
+      run: |
+        python -m py_compile *.py
+        echo "✅ All Python files have valid syntax"
+        
+    - name: Basic import test
+      run: |
+        python -c "import sys; print(f'Python version: {sys.version}')"
+        python -c "import numpy; print(f'NumPy version: {numpy.__version__}')"
+        
+  # 快速功能测试
+  quick-test:
+    name: Quick Functionality Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [syntax-check]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+        
+    - name: Install minimal dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install numpy>=1.19.0
+        
+    - name: Test module imports
+      run: |
+        echo "Testing module imports..."
+        
+        if [ -f "animation.py" ]; then
+          python -c "import animation; print(f'✅ Animation module v{animation.__version__} imported')"
+        fi
+        
+        if [ -f "composition.py" ]; then
+          python -c "import composition; print(f'✅ Composition module v{composition.__version__} imported')"
+        fi
+        
+        if [ -f "creation.py" ]; then
+          python -c "import creation; print(f'✅ Creation module v{creation.__version__} imported')"
+        fi
+        
+    - name: Run basic self-tests
+      run: |
+        echo "Running basic self-tests..."
+        
+        if [ -f "animation.py" ]; then
+          python -c "import animation; animation._module_self_test(); print('✅ Animation self-test passed')"
+        fi
+        
+        if [ -f "composition.py" ]; then
+          python -c "import composition; composition._module_self_test(); print('✅ Composition self-test passed')"
+        fi
+        
+        if [ -f "creation.py" ]; then
+          python -c "import creation; creation._module_self_test(); print('✅ Creation self-test passed')"
+        fi
+        
+  # 代码格式检查
+  format-check:
+    name: Format Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Install formatting tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install black isort
+        
+    - name: Check code formatting
+      run: |
+        echo "Checking code formatting..."
+        black --check --diff *.py || echo "⚠️ Code formatting issues found"
+        isort --check-only --diff *.py || echo "⚠️ Import sorting issues found"
+        echo "Format check completed"
+      continue-on-error: true
+        
+  # 总结
+  summary:
+    name: Quick Test Summary
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    needs: [syntax-check, quick-test, format-check]
+    if: always()
+    
+    steps:
+    - name: Generate summary
+      run: |
+        echo "=== Quick Test Summary ==="
+        echo "Syntax Check: ${{ needs.syntax-check.result }}"
+        echo "Quick Test: ${{ needs.quick-test.result }}"
+        echo "Format Check: ${{ needs.format-check.result }}"
+        
+        if [[ "${{ needs.syntax-check.result }}" == "success" && "${{ needs.quick-test.result }}" == "success" ]]; then
+          echo "✅ Quick tests passed! Code is ready for review."
+        else
+          echo "❌ Some quick tests failed. Please fix issues before proceeding."
+        fi

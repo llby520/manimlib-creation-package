@@ -3,10 +3,10 @@
 测试套件 - Manimlib Creation 模块
 
 项目信息：
-- GitHub仓库: https://github.com/llby520/manimlib-creation-package
-- 问题反馈: https://github.com/llby520/manimlib-creation-package/issues
-- 发布页面: https://github.com/llby520/manimlib-creation-package/releases
-- 项目文档: https://github.com/llby520/manimlib-creation-package/wiki
+- GitHub仓库: https://github.com/llby520/manimLibfuke
+- 问题反馈: https://github.com/llby520/manimLibfuke/issues
+- 发布页面: https://github.com/llby520/manimLibfuke/releases
+- 项目文档: https://github.com/llby520/manimLibfuke/wiki
 
 这个文件包含了对 creation.py 模块的全面测试，包括：
 - 单元测试：测试各个函数和类的基本功能
@@ -20,8 +20,8 @@
     python -m pytest test_creation.py --benchmark-only
 
 安装说明：
-    git clone https://github.com/llby520/manimlib-creation-package.git
-    cd manimlib-creation-package/creation_package/creationbuild_package
+    git clone https://github.com/llby520/manimLibfuke.git
+    cd manimLibfuke/creation_package/creationbuild_package
     pip install -r requirements_creation.txt
     pip install .
 """

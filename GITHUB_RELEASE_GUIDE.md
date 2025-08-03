@@ -69,14 +69,14 @@ git commit -m "Initial commit: Manimlib Creation Package v1.0.0
 #### 2.2 获取仓库 URL
 创建后，GitHub 会显示仓库 URL，类似:
 ```
-https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git
+https://github.com/llby520/manimlib-creation-package_NAME.git
 ```
 
 ### 步骤 3: 连接本地仓库到 GitHub
 
 #### 3.1 添加远程仓库
 ```bash
-git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git
+git remote add origin https://github.com/llby520/manimlib-creation-package_NAME.git
 ```
 
 #### 3.2 设置主分支
@@ -168,7 +168,7 @@ pip install manimlib-creation
 
 ### 从 GitHub 安装
 ```bash
-pip install git+https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git
+pip install git+https://github.com/llby520/manimlib-creation-package_NAME.git
 ```
 
 ### 使用 Conda
@@ -192,13 +192,13 @@ creation._module_self_test()  # 运行自测试
 
 ## 🔗 相关链接
 
-- [文档](https://github.com/YOUR_USERNAME/YOUR_REPO_NAME/wiki)
-- [问题报告](https://github.com/YOUR_USERNAME/YOUR_REPO_NAME/issues)
-- [变更日志](https://github.com/YOUR_USERNAME/YOUR_REPO_NAME/blob/main/creationbuild_package/CHANGELOG.md)
+- [文档](https://github.com/llby520/manimlib-creation-package_NAME/wiki)
+- [问题报告](https://github.com/llby520/manimlib-creation-package_NAME/issues)
+- [变更日志](https://github.com/llby520/manimlib-creation-package_NAME/blob/main/creationbuild_package/CHANGELOG.md)
 
 ---
 
-**完整的发布说明请查看 [CHANGELOG.md](https://github.com/YOUR_USERNAME/YOUR_REPO_NAME/blob/main/creationbuild_package/CHANGELOG.md)**
+**完整的发布说明请查看 [CHANGELOG.md](https://github.com/llby520/manimlib-creation-package_NAME/blob/main/creationbuild_package/CHANGELOG.md)**
 ```
 
 #### 6.2 上传构建文件 (可选)
@@ -218,7 +218,7 @@ python -m venv github_test_env
 github_test_env\Scripts\activate  # Windows
 
 # 从 GitHub 安装
-pip install git+https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git
+pip install git+https://github.com/llby520/manimlib-creation-package_NAME.git
 
 # 测试功能
 python -c "import creation; creation._module_self_test()"
@@ -316,7 +316,7 @@ python -m pytest creationbuild_package/test_creation.py -v
 
 ```bash
 # 从 GitHub 安装
-pip install git+https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git
+pip install git+https://github.com/llby520/manimlib-creation-package_NAME.git
 
 # 如果发布到 PyPI
 pip install manimlib-creation

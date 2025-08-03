@@ -53,7 +53,7 @@ VERSION = "2.0.0"
 AUTHOR = "ManimLib Community"
 AUTHOR_EMAIL = "community@manimlib.org"
 DESCRIPTION = "ManimLib创建动画模块 - 长期支持版本"
-URL = "https://github.com/llby520/manimlib-creation-package"
+URL = "https://github.com/llby520/manimLibfuke"
 LICENSE = "MIT"
 
 # 分类器
@@ -87,8 +87,8 @@ KEYWORDS = [
 # 项目URL
 PROJECT_URLS = {
     "Documentation": "https://docs.manim.community/",
-    "Source": "https://github.com/llby520/manimlib-creation-package",
-        "Tracker": "https://github.com/llby520/manimlib-creation-package/issues",
+    "Source": "https://github.com/llby520/manimLibfuke",
+        "Tracker": "https://github.com/llby520/manimLibfuke/issues",
 }
 
 setup(
