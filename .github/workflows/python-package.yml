@@ -1,0 +1,226 @@
+name: ManimLib Creation Package CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  release:
+    types: [published]
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements_creation.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Debug directory structure
+      run: |
+        echo "Current directory:"
+        pwd
+        echo "Directory contents:"
+        ls -la
+        echo "Checking for creationbuild_package:"
+        ls -la creationbuild_package/ || echo "creationbuild_package not found"
+        echo "Looking for requirements file:"
+        find . -name "requirements_creation.txt" -type f
+        echo "Checking if we are in creation_package already:"
+        ls -la . | grep -E "(creationbuild_package|PROJECT_OVERVIEW)"
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        # 根据调试信息确定正确路径
+        if [ -f "creationbuild_package/requirements_creation.txt" ]; then
+          pip install -r creationbuild_package/requirements_creation.txt
+        elif [ -f "requirements_creation.txt" ]; then
+          pip install -r requirements_creation.txt
+        else
+          echo "requirements_creation.txt not found in expected locations"
+          exit 1
+        fi
+        pip install build pytest flake8 mypy
+
+    - name: Lint with flake8
+      run: |
+        # stop the build if there are Python syntax errors or undefined names
+        if [ -f "creationbuild_package/creation.py" ]; then
+          flake8 creationbuild_package/creation.py --count --select=E9,F63,F7,F82 --show-source --statistics
+          flake8 creationbuild_package/creation.py --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+        elif [ -f "creation.py" ]; then
+          flake8 creation.py --count --select=E9,F63,F7,F82 --show-source --statistics
+          flake8 creation.py --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+        else
+          echo "creation.py not found in expected locations"
+          exit 1
+        fi
+
+    - name: Type checking with mypy
+      run: |
+        if [ -f "creationbuild_package/creation.py" ]; then
+          mypy creationbuild_package/creation.py --ignore-missing-imports || true
+        elif [ -f "creation.py" ]; then
+          mypy creation.py --ignore-missing-imports || true
+        else
+          echo "creation.py not found for mypy check"
+        fi
+
+    - name: Test module import and self-test
+      run: |
+        if [ -d "creationbuild_package" ]; then
+          python -c "import sys; sys.path.insert(0, 'creationbuild_package'); import creation; creation._module_self_test()"
+        else
+          python -c "import creation; creation._module_self_test()"
+        fi
+
+    - name: Run unit tests
+      run: |
+        if [ -f "creationbuild_package/test_creation.py" ]; then
+          pytest creationbuild_package/test_creation.py -v
+        elif [ -f "test_creation.py" ]; then
+          pytest test_creation.py -v
+        else
+          echo "test_creation.py not found in expected locations"
+          exit 1
+        fi
+
+    - name: Test Chinese encoding
+      run: |
+        if [ -f "creationbuild_package/中文输出文档/test_chinese_encoding.py" ]; then
+          python creationbuild_package/中文输出文档/test_chinese_encoding.py
+        elif [ -f "中文输出文档/test_chinese_encoding.py" ]; then
+          python 中文输出文档/test_chinese_encoding.py
+        else
+          echo "test_chinese_encoding.py not found in expected locations"
+          exit 1
+        fi
+
+    - name: Test demo scripts
+      run: |
+        if [ -f "creationbuild_package/Demo_ShowSubmobjectsOneByOne.py" ]; then
+          python creationbuild_package/Demo_ShowSubmobjectsOneByOne.py
+          python creationbuild_package/中文输出文档/Demo_ShowSubmobjectsOneByOne.py
+        elif [ -f "Demo_ShowSubmobjectsOneByOne.py" ]; then
+          python Demo_ShowSubmobjectsOneByOne.py
+          python 中文输出文档/Demo_ShowSubmobjectsOneByOne.py
+        else
+          echo "Demo scripts not found in expected locations"
+          exit 1
+        fi
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'release'
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install build dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install build twine
+
+    - name: Build package
+      run: |
+        cd creationbuild_package
+        python -m build
+
+    - name: Check package
+      run: |
+        cd creationbuild_package
+        twine check dist/*
+
+    - name: Test installation from wheel
+      run: |
+        cd creationbuild_package
+        pip install dist/*.whl
+        python -c "import creation; creation._module_self_test()"
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: dist-packages
+        path: creationbuild_package/dist/
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release' && github.event.action == 'published'
+    environment:
+      name: pypi
+      url: https://pypi.org/p/manimlib-creation
+    permissions:
+      id-token: write  # IMPORTANT: this permission is mandatory for trusted publishing
+
+    steps:
+    - name: Download build artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: dist-packages
+        path: dist/
+
+    - name: Publish to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        packages-dir: dist/
+        # 如果您还没有设置PyPI trusted publishing，可以使用以下方式：
+        # password: ${{ secrets.PYPI_API_TOKEN }}
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install security tools
+      run: |
+        pip install safety bandit
+
+    - name: Check dependencies for security vulnerabilities
+      run: |
+        cd creationbuild_package
+        safety check -r requirements_creation.txt
+
+    - name: Run bandit security linter
+      run: |
+        cd creationbuild_package
+        bandit -r creation.py -f json -o bandit-report.json || true
+
+    - name: Upload security report
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: security-report
+        path: creationbuild_package/bandit-report.json

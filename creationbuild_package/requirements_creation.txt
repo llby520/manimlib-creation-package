@@ -1,0 +1,43 @@
+# ManimLib Creation Animation Module - 长期支持版本
+# 依赖要求文件
+# 版本: 2.0.0
+# 更新日期: 2024-12-19
+
+# 核心依赖
+numpy>=1.19.0,<3.0.0
+# NumPy是数值计算的核心库，1.19+提供了稳定的API
+# 支持到3.0以确保未来兼容性
+
+# Python版本要求 (在setup.py或pyproject.toml中指定)
+# python_requires = ">=3.8"
+
+# 可选依赖 (根据实际ManimLib环境调整)
+# matplotlib>=3.3.0  # 用于颜色和绘图支持
+# pillow>=8.0.0      # 图像处理支持
+# scipy>=1.5.0       # 科学计算支持
+
+# 开发依赖 (可选)
+# pytest>=6.0.0     # 单元测试
+# black>=21.0.0      # 代码格式化
+# mypy>=0.800        # 类型检查
+# flake8>=3.8.0      # 代码质量检查
+
+# 注意事项:
+# 1. 这个模块设计为与现有ManimLib环境兼容
+# 2. 具体的ManimLib版本要求请参考主项目文档
+# 3. 建议在虚拟环境中安装以避免依赖冲突
+# 4. 如果遇到pkg_resources警告，这是正常的，已被自动过滤
+
+# 项目信息:
+# GitHub仓库: https://github.com/llby520/manimLibfuke
+# 问题反馈: https://github.com/llby520/manimLibfuke/issues
+# 发布页面: https://github.com/llby520/manimLibfuke/releases
+
+# 安装命令:
+# git clone https://github.com/llby520/manimLibfuke.git
+# cd manimLibfuke/creation_package/creationbuild_package
+# pip install -r requirements_creation.txt
+# pip install .
+
+# 验证安装:
+# python creation.py

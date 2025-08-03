@@ -1,0 +1,867 @@
+# 文档生成和部署工作流
+# 用于自动生成和部署项目文档
+
+name: Documentation
+
+# 触发条件
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - '*.py'
+      - 'docs/**'
+      - 'README*.md'
+      - 'CHANGELOG.md'
+      - '.github/workflows/docs.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - '*.py'
+      - 'docs/**'
+      - 'README*.md'
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      deploy_docs:
+        description: 'Deploy documentation to GitHub Pages'
+        required: false
+        type: boolean
+        default: false
+
+# 环境变量
+env:
+  PYTHONUNBUFFERED: 1
+  PYTHONDONTWRITEBYTECODE: 1
+
+# 权限设置
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 并发控制
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # 生成 API 文档
+  generate-api-docs:
+    name: Generate API Documentation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+        
+    - name: Install documentation tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install sphinx sphinx-rtd-theme sphinx-autodoc-typehints
+        pip install myst-parser sphinx-copybutton sphinx-tabs
+        pip install numpy>=1.19.0
+        
+    - name: Create docs directory structure
+      run: |
+        mkdir -p docs/source
+        mkdir -p docs/build
+        mkdir -p docs/source/_static
+        mkdir -p docs/source/_templates
+        
+    - name: Generate Sphinx configuration
+      run: |
+        cat > docs/source/conf.py << 'EOF'
+        # Sphinx 配置文件
+        import os
+        import sys
+        
+        # 添加项目根目录到 Python 路径
+        sys.path.insert(0, os.path.abspath('../..'))
+        
+        # 项目信息
+        project = 'Manimlib Modules'
+        copyright = '2024, Manimlib Contributors'
+        author = 'Manimlib Contributors'
+        
+        # 版本信息
+        try:
+            import animation
+            version = animation.__version__
+            release = version
+        except ImportError:
+            version = '2.0.0'
+            release = '2.0.0'
+        
+        # 扩展
+        extensions = [
+            'sphinx.ext.autodoc',
+            'sphinx.ext.viewcode',
+            'sphinx.ext.napoleon',
+            'sphinx.ext.intersphinx',
+            'sphinx_autodoc_typehints',
+            'myst_parser',
+            'sphinx_copybutton',
+            'sphinx_tabs.tabs',
+        ]
+        
+        # 模板路径
+        templates_path = ['_templates']
+        
+        # 排除模式
+        exclude_patterns = []
+        
+        # HTML 输出选项
+        html_theme = 'sphinx_rtd_theme'
+        html_static_path = ['_static']
+        html_title = f'{project} v{version}'
+        
+        # HTML 主题选项
+        html_theme_options = {
+            'canonical_url': '',
+            'analytics_id': '',
+            'logo_only': False,
+            'display_version': True,
+            'prev_next_buttons_location': 'bottom',
+            'style_external_links': False,
+            'vcs_pageview_mode': '',
+            'style_nav_header_background': '#2980B9',
+            'collapse_navigation': True,
+            'sticky_navigation': True,
+            'navigation_depth': 4,
+            'includehidden': True,
+            'titles_only': False
+        }
+        
+        # Autodoc 选项
+        autodoc_default_options = {
+            'members': True,
+            'member-order': 'bysource',
+            'special-members': '__init__',
+            'undoc-members': True,
+            'exclude-members': '__weakref__'
+        }
+        
+        # Napoleon 设置
+        napoleon_google_docstring = True
+        napoleon_numpy_docstring = True
+        napoleon_include_init_with_doc = False
+        napoleon_include_private_with_doc = False
+        napoleon_include_special_with_doc = True
+        napoleon_use_admonition_for_examples = False
+        napoleon_use_admonition_for_notes = False
+        napoleon_use_admonition_for_references = False
+        napoleon_use_ivar = False
+        napoleon_use_param = True
+        napoleon_use_rtype = True
+        
+        # Intersphinx 映射
+        intersphinx_mapping = {
+            'python': ('https://docs.python.org/3', None),
+            'numpy': ('https://numpy.org/doc/stable/', None),
+        }
+        
+        # MyST 解析器设置
+        myst_enable_extensions = [
+            "colon_fence",
+            "deflist",
+            "html_admonition",
+            "html_image",
+            "linkify",
+            "replacements",
+            "smartquotes",
+            "substitution",
+            "tasklist",
+        ]
+        EOF
+        
+    - name: Generate main documentation index
+      run: |
+        cat > docs/source/index.rst << 'EOF'
+        Manimlib Modules Documentation
+        ==============================
+        
+        欢迎使用 Manimlib Modules 文档！这是一个现代化的 Python 动画库模块集合。
+        
+        .. toctree::
+           :maxdepth: 2
+           :caption: 内容目录:
+        
+           overview
+           installation
+           quickstart
+           api/index
+           examples/index
+           changelog
+           contributing
+        
+        模块概览
+        ========
+        
+        Manimlib Modules 包含以下核心模块：
+        
+        * **Animation Module**: 核心动画功能
+        * **Composition Module**: 动画组合和编排
+        * **Creation Module**: 对象创建和操作
+        
+        特性
+        ====
+        
+        * 🐍 现代 Python 3.8+ 兼容性
+        * 📝 完整的类型注解支持
+        * 📚 全面的文档字符串
+        * 🛡️ 增强的错误处理机制
+        * ⚡ 性能优化和改进
+        * 🧪 广泛的测试覆盖
+        
+        索引和表格
+        ===========
+        
+        * :ref:`genindex`
+        * :ref:`modindex`
+        * :ref:`search`
+        EOF
+        
+    - name: Generate API documentation
+      run: |
+        mkdir -p docs/source/api
+        
+        # 生成 API 索引
+        cat > docs/source/api/index.rst << 'EOF'
+        API 参考
+        ========
+        
+        这里是 Manimlib Modules 的完整 API 参考文档。
+        
+        .. toctree::
+           :maxdepth: 2
+        
+           animation
+           composition
+           creation
+        EOF
+        
+        # 为每个模块生成 API 文档
+        modules=("animation" "composition" "creation")
+        
+        for module in "${modules[@]}"; do
+          if [ -f "${module}.py" ]; then
+            cat > "docs/source/api/${module}.rst" << EOF
+        ${module^} Module
+        $(printf '=%.0s' {1..20})
+        
+        .. automodule:: ${module}
+           :members:
+           :undoc-members:
+           :show-inheritance:
+           :special-members: __init__
+        
+        Classes
+        -------
+        
+        .. currentmodule:: ${module}
+        
+        EOF
+            
+            # 提取类名并添加到文档
+            python -c "
+        try:
+            import ${module}
+            import inspect
+            
+            classes = [name for name, obj in inspect.getmembers(${module}, inspect.isclass) 
+                      if obj.__module__ == '${module}']
+            
+            if classes:
+                with open('docs/source/api/${module}.rst', 'a') as f:
+                    for cls in classes:
+                        f.write(f'.. autoclass:: {cls}\n')
+                        f.write('   :members:\n')
+                        f.write('   :inherited-members:\n')
+                        f.write('   :show-inheritance:\n\n')
+        except ImportError:
+            print('Module ${module} not found, skipping class extraction')
+        "
+          fi
+        done
+        
+    - name: Generate additional documentation pages
+      run: |
+        # 概览页面
+        cat > docs/source/overview.md << 'EOF'
+        # 项目概览
+        
+        Manimlib Modules 是一个现代化的 Python 动画库模块集合，专为创建高质量的数学动画而设计。
+        
+        ## 设计理念
+        
+        - **模块化**: 每个模块专注于特定功能
+        - **类型安全**: 完整的类型注解支持
+        - **文档完善**: 详细的文档字符串和示例
+        - **性能优化**: 高效的算法和数据结构
+        - **易于使用**: 直观的 API 设计
+        
+        ## 架构
+        
+        ```
+        Manimlib Modules
+        ├── Animation Module    # 核心动画功能
+        ├── Composition Module  # 动画组合和编排
+        └── Creation Module     # 对象创建和操作
+        ```
+        
+        ## 兼容性
+        
+        - Python 3.8+
+        - NumPy 1.19.0+
+        - 跨平台支持 (Windows, macOS, Linux)
+        EOF
+        
+        # 安装指南
+        cat > docs/source/installation.md << 'EOF'
+        # 安装指南
+        
+        ## 系统要求
+        
+        - Python 3.8 或更高版本
+        - NumPy 1.19.0 或更高版本
+        
+        ## 安装方法
+        
+        ### 从 PyPI 安装（推荐）
+        
+        ```bash
+        pip install manimlib-animation
+        pip install manimlib-composition
+        pip install manimlib-creation
+        ```
+        
+        ### 从源码安装
+        
+        ```bash
+        git clone https://github.com/your-repo/manimlib-modules.git
+        cd manimlib-modules
+        
+        # 安装各个模块
+        pip install ./animation_package/
+        pip install ./compositionbuild_package/
+        pip install ./creation_package/
+        ```
+        
+        ### 开发环境安装
+        
+        ```bash
+        git clone https://github.com/your-repo/manimlib-modules.git
+        cd manimlib-modules
+        
+        # 创建虚拟环境
+        python -m venv venv
+        source venv/bin/activate  # Windows: venv\Scripts\activate
+        
+        # 安装开发依赖
+        pip install -r requirements-dev.txt
+        
+        # 以开发模式安装
+        pip install -e ./animation_package/
+        pip install -e ./compositionbuild_package/
+        pip install -e ./creation_package/
+        ```
+        
+        ## 验证安装
+        
+        ```python
+        import animation
+        import composition
+        import creation
+        
+        print(f"Animation v{animation.__version__}")
+        print(f"Composition v{composition.__version__}")
+        print(f"Creation v{creation.__version__}")
+        ```
+        EOF
+        
+        # 快速开始
+        cat > docs/source/quickstart.md << 'EOF'
+        # 快速开始
+        
+        本指南将帮助您快速上手 Manimlib Modules。
+        
+        ## 基本使用
+        
+        ### 导入模块
+        
+        ```python
+        import animation
+        import composition
+        import creation
+        ```
+        
+        ### 运行示例
+        
+        每个模块都包含内置的使用示例：
+        
+        ```python
+        # 运行动画模块示例
+        animation._usage_example()
+        
+        # 运行组合模块示例
+        composition._usage_example()
+        
+        # 运行创建模块示例
+        creation._usage_example()
+        ```
+        
+        ### 模块自测试
+        
+        验证模块功能：
+        
+        ```python
+        # 运行自测试
+        animation._module_self_test()
+        composition._module_self_test()
+        creation._module_self_test()
+        ```
+        
+        ## 下一步
+        
+        - 查看 [API 参考](api/index.rst) 了解详细功能
+        - 浏览 [示例集合](examples/index.rst) 学习最佳实践
+        - 阅读 [贡献指南](contributing.rst) 参与开发
+        EOF
+        
+        # 贡献指南
+        cat > docs/source/contributing.rst << 'EOF'
+        贡献指南
+        ========
+        
+        感谢您对 Manimlib Modules 的关注！我们欢迎各种形式的贡献。
+        
+        开发环境设置
+        ------------
+        
+        1. Fork 项目仓库
+        2. 克隆您的 fork::
+        
+            git clone https://github.com/your-username/manimlib-modules.git
+            cd manimlib-modules
+        
+        3. 创建虚拟环境::
+        
+            python -m venv venv
+            source venv/bin/activate  # Windows: venv\Scripts\activate
+        
+        4. 安装开发依赖::
+        
+            pip install -r requirements-dev.txt
+        
+        代码规范
+        --------
+        
+        - 使用 Black 进行代码格式化
+        - 使用 isort 整理导入语句
+        - 使用 MyPy 进行类型检查
+        - 使用 Flake8 进行代码风格检查
+        
+        运行检查::
+        
+            black *.py
+            isort *.py
+            mypy *.py
+            flake8 *.py
+        
+        测试
+        ----
+        
+        运行测试套件::
+        
+            python -m pytest
+        
+        提交更改
+        --------
+        
+        1. 创建功能分支::
+        
+            git checkout -b feature/your-feature-name
+        
+        2. 提交更改::
+        
+            git commit -m "Add your feature"
+        
+        3. 推送到您的 fork::
+        
+            git push origin feature/your-feature-name
+        
+        4. 创建 Pull Request
+        
+        报告问题
+        --------
+        
+        请在 GitHub Issues 中报告 bug 或提出功能请求。
+        EOF
+        
+        # 变更日志（如果存在的话复制）
+        if [ -f "CHANGELOG.md" ]; then
+          cp CHANGELOG.md docs/source/changelog.md
+        else
+          echo "# 变更日志\n\n详细的变更日志请查看项目仓库。" > docs/source/changelog.md
+        fi
+        
+    - name: Generate examples documentation
+      run: |
+        mkdir -p docs/source/examples
+        
+        cat > docs/source/examples/index.rst << 'EOF'
+        示例集合
+        ========
+        
+        这里收集了 Manimlib Modules 的各种使用示例。
+        
+        .. toctree::
+           :maxdepth: 2
+        
+           basic_usage
+           advanced_examples
+           best_practices
+        EOF
+        
+        # 基本使用示例
+        cat > docs/source/examples/basic_usage.md << 'EOF'
+        # 基本使用示例
+        
+        ## Animation Module 基础
+        
+        ```python
+        import animation
+        
+        # 查看模块信息
+        print(f"Animation Module v{animation.__version__}")
+        print(f"Author: {animation.__author__}")
+        print(f"Available classes: {animation.__all__}")
+        
+        # 运行内置示例
+        animation._usage_example()
+        ```
+        
+        ## Composition Module 基础
+        
+        ```python
+        import composition
+        
+        # 创建动画组
+        # 具体示例请参考模块文档
+        composition._usage_example()
+        ```
+        
+        ## Creation Module 基础
+        
+        ```python
+        import creation
+        
+        # 创建对象
+        # 具体示例请参考模块文档
+        creation._usage_example()
+        ```
+        EOF
+        
+        # 高级示例
+        cat > docs/source/examples/advanced_examples.md << 'EOF'
+        # 高级示例
+        
+        ## 模块组合使用
+        
+        ```python
+        import animation
+        import composition
+        import creation
+        
+        # 组合使用多个模块的示例
+        # 具体实现请参考各模块的 _usage_example() 函数
+        ```
+        
+        ## 性能优化
+        
+        ```python
+        # 性能测试和优化示例
+        import time
+        
+        def benchmark_modules():
+            start = time.time()
+            # 执行操作
+            end = time.time()
+            print(f"执行时间: {end - start:.3f}s")
+        ```
+        EOF
+        
+        # 最佳实践
+        cat > docs/source/examples/best_practices.md << 'EOF'
+        # 最佳实践
+        
+        ## 错误处理
+        
+        ```python
+        try:
+            import animation
+            animation._module_self_test()
+        except ImportError as e:
+            print(f"模块导入失败: {e}")
+        except Exception as e:
+            print(f"运行时错误: {e}")
+        ```
+        
+        ## 类型注解
+        
+        ```python
+        from typing import List, Optional
+        import numpy as np
+        
+        def process_animation_data(data: np.ndarray) -> Optional[List[float]]:
+            """处理动画数据的示例函数"""
+            if data.size == 0:
+                return None
+            return data.tolist()
+        ```
+        
+        ## 文档字符串
+        
+        ```python
+        def example_function(param1: int, param2: str = "default") -> bool:
+            """
+            示例函数的文档字符串。
+            
+            Args:
+                param1: 第一个参数的描述
+                param2: 第二个参数的描述，有默认值
+                
+            Returns:
+                返回值的描述
+                
+            Raises:
+                ValueError: 当参数无效时抛出
+                
+            Example:
+                >>> result = example_function(42, "test")
+                >>> print(result)
+                True
+            """
+            return True
+        ```
+        EOF
+        
+    - name: Build documentation
+      run: |
+        cd docs
+        sphinx-build -b html source build/html
+        
+        # 检查构建结果
+        if [ -f "build/html/index.html" ]; then
+          echo "✅ 文档构建成功"
+          echo "📄 生成的页面:"
+          find build/html -name "*.html" | head -10
+        else
+          echo "❌ 文档构建失败"
+          exit 1
+        fi
+        
+    - name: Upload documentation artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: documentation
+        path: docs/build/html/
+        retention-days: 30
+
+  # 检查文档质量
+  check-docs-quality:
+    name: Check Documentation Quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [generate-api-docs]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Download documentation
+      uses: actions/download-artifact@v3
+      with:
+        name: documentation
+        path: docs-html/
+        
+    - name: Install quality check tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y linkchecker
+        pip install html5lib beautifulsoup4
+        
+    - name: Check HTML validity
+      run: |
+        echo "=== HTML 有效性检查 ==="
+        
+        python -c "
+        import os
+        from bs4 import BeautifulSoup
+        
+        html_files = []
+        for root, dirs, files in os.walk('docs-html'):
+            for file in files:
+                if file.endswith('.html'):
+                    html_files.append(os.path.join(root, file))
+        
+        print(f'找到 {len(html_files)} 个 HTML 文件')
+        
+        errors = 0
+        for html_file in html_files[:10]:  # 检查前10个文件
+            try:
+                with open(html_file, 'r', encoding='utf-8') as f:
+                    soup = BeautifulSoup(f.read(), 'html.parser')
+                    if soup.title:
+                        print(f'✅ {os.path.basename(html_file)}: {soup.title.string}')
+                    else:
+                        print(f'⚠️ {os.path.basename(html_file)}: 缺少标题')
+            except Exception as e:
+                print(f'❌ {os.path.basename(html_file)}: {e}')
+                errors += 1
+        
+        if errors > 0:
+            print(f'发现 {errors} 个错误')
+        else:
+            print('✅ HTML 文件检查通过')
+        "
+        
+    - name: Check internal links
+      run: |
+        echo "=== 内部链接检查 ==="
+        
+        # 使用 linkchecker 检查内部链接
+        linkchecker --check-extern --no-warnings docs-html/index.html || echo "⚠️ 发现链接问题"
+      continue-on-error: true
+      
+    - name: Generate documentation report
+      run: |
+        echo "=== 文档质量报告 ===" > docs-quality-report.md
+        echo "" >> docs-quality-report.md
+        
+        # 统计文档页面
+        HTML_COUNT=$(find docs-html -name "*.html" | wc -l)
+        echo "- 📄 HTML 页面数量: $HTML_COUNT" >> docs-quality-report.md
+        
+        # 统计文档大小
+        DOCS_SIZE=$(du -sh docs-html | cut -f1)
+        echo "- 📦 文档总大小: $DOCS_SIZE" >> docs-quality-report.md
+        
+        # 检查关键页面
+        echo "" >> docs-quality-report.md
+        echo "## 关键页面检查" >> docs-quality-report.md
+        echo "" >> docs-quality-report.md
+        
+        key_pages=("index.html" "api/index.html" "examples/index.html")
+        for page in "${key_pages[@]}"; do
+          if [ -f "docs-html/$page" ]; then
+            echo "- ✅ $page" >> docs-quality-report.md
+          else
+            echo "- ❌ $page (缺失)" >> docs-quality-report.md
+          fi
+        done
+        
+        echo "" >> docs-quality-report.md
+        echo "## 建议" >> docs-quality-report.md
+        echo "" >> docs-quality-report.md
+        echo "1. 定期更新文档内容" >> docs-quality-report.md
+        echo "2. 检查并修复损坏的链接" >> docs-quality-report.md
+        echo "3. 添加更多示例和教程" >> docs-quality-report.md
+        echo "4. 保持 API 文档与代码同步" >> docs-quality-report.md
+        
+        cat docs-quality-report.md
+        
+    - name: Upload quality report
+      uses: actions/upload-artifact@v3
+      with:
+        name: docs-quality-report
+        path: docs-quality-report.md
+
+  # 部署到 GitHub Pages
+  deploy-docs:
+    name: Deploy to GitHub Pages
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [generate-api-docs, check-docs-quality]
+    if: |
+      (github.ref == 'refs/heads/main' && github.event_name == 'push') ||
+      (github.event_name == 'release' && github.event.action == 'published') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.deploy_docs == 'true')
+    
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    
+    steps:
+    - name: Download documentation
+      uses: actions/download-artifact@v3
+      with:
+        name: documentation
+        path: docs-html/
+        
+    - name: Setup Pages
+      uses: actions/configure-pages@v3
+      
+    - name: Upload to GitHub Pages
+      uses: actions/upload-pages-artifact@v2
+      with:
+        path: docs-html/
+        
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v2
+      
+    - name: Generate deployment summary
+      run: |
+        echo "=== 文档部署成功 ==="
+        echo "📖 文档 URL: ${{ steps.deployment.outputs.page_url }}"
+        echo "🕒 部署时间: $(date)"
+        echo "📦 部署分支: ${{ github.ref }}"
+        echo "🔄 触发事件: ${{ github.event_name }}"
+
+  # 总结
+  summary:
+    name: Documentation Summary
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [generate-api-docs, check-docs-quality, deploy-docs]
+    if: always()
+    
+    steps:
+    - name: Generate summary
+      run: |
+        echo "=== Documentation Workflow Summary ==="
+        echo "API Docs Generation: ${{ needs.generate-api-docs.result }}"
+        echo "Quality Check: ${{ needs.check-docs-quality.result }}"
+        echo "Deployment: ${{ needs.deploy-docs.result }}"
+        
+        if [[ "${{ needs.generate-api-docs.result }}" == "success" ]]; then
+          echo "✅ 文档生成成功"
+        else
+          echo "❌ 文档生成失败"
+        fi
+        
+        if [[ "${{ needs.check-docs-quality.result }}" == "success" ]]; then
+          echo "✅ 文档质量检查通过"
+        else
+          echo "⚠️ 文档质量检查发现问题"
+        fi
+        
+        if [[ "${{ needs.deploy-docs.result }}" == "success" ]]; then
+          echo "✅ 文档部署成功"
+          echo "📖 访问地址: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/"
+        elif [[ "${{ needs.deploy-docs.result }}" == "skipped" ]]; then
+          echo "⏭️ 文档部署已跳过（不满足部署条件）"
+        else
+          echo "❌ 文档部署失败"
+        fi
+        
+        echo "\n📚 文档工作流完成！"

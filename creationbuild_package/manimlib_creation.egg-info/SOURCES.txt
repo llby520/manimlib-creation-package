@@ -1,0 +1,9 @@
+LICENSE
+README_creation.md
+creation.py
+pyproject.toml
+manimlib_creation.egg-info/PKG-INFO
+manimlib_creation.egg-info/SOURCES.txt
+manimlib_creation.egg-info/dependency_links.txt
+manimlib_creation.egg-info/requires.txt
+manimlib_creation.egg-info/top_level.txt

@@ -1,0 +1,133 @@
+name: Simple CI for ManimLib Creation
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.8', '3.9', '3.10', '3.11']
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Debug directory structure
+      run: |
+        echo "Current directory:"
+        pwd
+        echo "Directory contents:"
+        ls -la
+        echo "Checking for creationbuild_package:"
+        ls -la creationbuild_package/ || echo "creationbuild_package not found"
+        echo "Looking for requirements file:"
+        find . -name "requirements_creation.txt" -type f
+        echo "Checking if we are in creation_package already:"
+        ls -la . | grep -E "(creationbuild_package|PROJECT_OVERVIEW)"
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        # 根据调试信息确定正确路径
+        if [ -f "creationbuild_package/requirements_creation.txt" ]; then
+          pip install -r creationbuild_package/requirements_creation.txt
+        elif [ -f "requirements_creation.txt" ]; then
+          pip install -r requirements_creation.txt
+        else
+          echo "requirements_creation.txt not found in expected locations"
+          exit 1
+        fi
+        pip install flake8 pytest
+
+    - name: Lint with flake8
+      run: |
+        # 检查Python语法错误
+        if [ -f "creationbuild_package/creation.py" ]; then
+          flake8 creationbuild_package/creation.py --count --select=E9,F63,F7,F82 --show-source --statistics
+          flake8 creationbuild_package/creation.py --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+        elif [ -f "creation.py" ]; then
+          flake8 creation.py --count --select=E9,F63,F7,F82 --show-source --statistics
+          flake8 creation.py --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+        else
+          echo "creation.py not found in expected locations"
+          exit 1
+        fi
+
+    - name: Test module functionality
+      run: |
+        # 测试模块导入和运行自测试
+        if [ -d "creationbuild_package" ]; then
+          python -c "import sys; sys.path.insert(0, 'creationbuild_package'); import creation; print('✅ Module import successful')"
+          python -c "import sys; sys.path.insert(0, 'creationbuild_package'); import creation; creation._module_self_test()"
+        else
+          python -c "import creation; print('✅ Module import successful')"
+          python -c "import creation; creation._module_self_test()"
+        fi
+
+    - name: Test Chinese encoding support
+      run: |
+        if [ -f "creationbuild_package/中文输出文档/test_chinese_encoding.py" ]; then
+          python creationbuild_package/中文输出文档/test_chinese_encoding.py
+        elif [ -f "中文输出文档/test_chinese_encoding.py" ]; then
+          python 中文输出文档/test_chinese_encoding.py
+        else
+          echo "test_chinese_encoding.py not found in expected locations"
+          exit 1
+        fi
+
+    - name: Run demo scripts
+      run: |
+        if [ -f "creationbuild_package/Demo_ShowSubmobjectsOneByOne.py" ]; then
+          python creationbuild_package/Demo_ShowSubmobjectsOneByOne.py
+        elif [ -f "Demo_ShowSubmobjectsOneByOne.py" ]; then
+          python Demo_ShowSubmobjectsOneByOne.py
+        else
+          echo "Demo_ShowSubmobjectsOneByOne.py not found in expected locations"
+          exit 1
+        fi
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install build tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install build
+
+    - name: Build package
+      run: |
+        cd creationbuild_package
+        python -m build
+
+    - name: Test installation
+      run: |
+        cd creationbuild_package
+        pip install dist/*.whl
+        python -c "import creation; creation._module_self_test()"
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: python-package
+        path: creationbuild_package/dist/

@@ -1,0 +1,54 @@
+{% set name = "manimlib-creation" %}
+{% set version = "1.0.0" %}
+
+package:
+  name: {{ name|lower }}
+  version: {{ version }}
+
+source:
+  path: .
+
+build:
+  noarch: python
+  number: 0
+  script: {{ PYTHON }} -m pip install . -vv
+  entry_points:
+    - manimlib-creation = creation:main
+
+requirements:
+  host:
+    - python >=3.9
+    - pip
+    - setuptools >=61.0
+    - wheel
+  run:
+    - python >=3.9
+    - numpy >=1.20.0
+    - typing-extensions >=4.0.0
+
+test:
+  imports:
+    - creation
+  commands:
+    - python -c "import creation; creation._module_self_test()"
+  requires:
+    - pytest >=7.0.0
+    - pytest-cov >=4.0.0
+
+about:
+  home: https://github.com/llby520/manimLibfuke
+  license: MIT
+  license_family: MIT
+  license_file: LICENSE
+  summary: Manimlib Creation Module - Advanced animation creation utilities
+  description: |
+    The Manimlib Creation Module provides advanced utilities for creating
+    mathematical animations with enhanced performance and flexibility.
+    This module is part of the Manimlib ecosystem and offers powerful
+    tools for animation creation, object manipulation, and rendering optimization.
+  doc_url: https://github.com/llby520/manimLibfuke/wiki
+  dev_url: https://github.com/llby520/manimLibfuke
+
+extra:
+  recipe-maintainers:
+    - llby520
