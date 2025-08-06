@@ -17,9 +17,24 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
         python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
 
+    defaults:
+      run:
+        working-directory: ./creation_package
+
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
+
+    - name: Verify directory structure
+      run: |
+        echo "=== Repository root directory ==="
+        ls -la ../
+        echo "=== Current working directory (should be creation_package) ==="
+        pwd
+        ls -la
+        echo "=== Looking for required files ==="
+        find . -name "requirements_creation.txt" -type f
+        find . -name "creationbuild_package" -type d
 
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v4
@@ -50,13 +65,25 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
+        # 首先检查当前目录结构
+        echo "=== Current working directory ==="
+        pwd
+        echo "=== Directory listing ==="
+        ls -la
+        echo "=== Looking for requirements files ==="
+        find . -name "*requirements*.txt" -type f
+        
         # 根据调试信息确定正确路径
         if [ -f "creationbuild_package/requirements_creation.txt" ]; then
+          echo "Found requirements file in creationbuild_package/"
           pip install -r creationbuild_package/requirements_creation.txt
         elif [ -f "requirements_creation.txt" ]; then
+          echo "Found requirements file in root directory"
           pip install -r requirements_creation.txt
         else
-          echo "requirements_creation.txt not found in expected locations"
+          echo "ERROR: requirements_creation.txt not found in expected locations"
+          echo "Available files:"
+          find . -name "*.txt" -type f
           exit 1
         fi
         pip install build pytest flake8 mypy
@@ -133,6 +160,10 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'push' || github.event_name == 'release'
 
+    defaults:
+      run:
+        working-directory: ./creation_package
+
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
@@ -195,6 +226,11 @@ jobs:
 
   security:
     runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ./creation_package
+
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
