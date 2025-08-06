@@ -1,0 +1,27 @@
+name: manimlib-creation
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python>=3.8,<3.13
+  - numpy
+  - scipy
+  - matplotlib
+  - pillow
+  - cairo
+  - pango
+  - ffmpeg
+  - pkg-config
+  - pip
+  - pip:
+    - manimgl
+    - moderngl
+    - moderngl-window
+    - mapbox-earcut
+    - colour
+    - isosurfaces
+    - rich
+    - click
+    - tqdm
+    - screeninfo
+    - validators

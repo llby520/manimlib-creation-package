@@ -3,6 +3,11 @@
 
 name: Security and Dependencies
 
+# 全局默认设置
+defaults:
+  run:
+    working-directory: ./creation_package
+
 # 触发条件
 on:
   schedule:

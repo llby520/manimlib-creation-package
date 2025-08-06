@@ -3,6 +3,11 @@
 
 name: Quick Test
 
+# 全局默认设置
+defaults:
+  run:
+    working-directory: ./creation_package
+
 # 触发条件
 on:
   push:

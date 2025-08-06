@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ main ]
 
+defaults:
+  run:
+    working-directory: ./creation_package
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -165,4 +169,4 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: python-package
-        path: creationbuild_package/dist/
+        path: ./creationbuild_package/dist/

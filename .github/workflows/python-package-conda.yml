@@ -8,6 +8,10 @@ on:
   release:
     types: [published]
 
+defaults:
+  run:
+    working-directory: ./creation_package
+
 jobs:
   test-conda:
     runs-on: ${{ matrix.os }}
@@ -21,13 +25,24 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
+    - name: Install system dependencies for ManimGL
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ffmpeg libcairo2-dev libpango1.0-dev pkg-config python3-dev libgirepository1.0-dev
+
+    - name: Install system dependencies for ManimGL (macOS)
+      if: runner.os == 'macOS'
+      run: |
+        brew install ffmpeg cairo pango pkg-config
+
     - name: Setup Miniconda
       uses: conda-incubator/setup-miniconda@v3
       with:
         auto-update-conda: true
         python-version: ${{ matrix.python-version }}
         channels: conda-forge,defaults
-        environment-file: creationbuild_package/environment.yml
+        environment-file: environment.yml
         activate-environment: manimlib-creation
         auto-activate-base: false
         use-mamba: true
@@ -59,14 +74,9 @@ jobs:
       shell: bash -l {0}
       timeout-minutes: 15
       run: |
-        # Use mamba for faster dependency resolution
+        # Additional dependencies that might not be in environment.yml
         mamba install -c conda-forge pytest flake8 mypy build twine --yes
-        # Install pip dependencies if needed
-        if [ -f "creationbuild_package/requirements_creation.txt" ]; then
-          pip install -r creationbuild_package/requirements_creation.txt
-        elif [ -f "requirements_creation.txt" ]; then
-          pip install -r requirements_creation.txt
-        fi
+        echo "Additional dependencies installed"
 
     - name: Lint with flake8
       shell: bash -l {0}
@@ -150,13 +160,18 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
+    - name: Install system dependencies for ManimGL
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ffmpeg libcairo2-dev libpango1.0-dev pkg-config python3-dev libgirepository1.0-dev
+
     - name: Setup Miniconda
       uses: conda-incubator/setup-miniconda@v3
       with:
         auto-update-conda: true
         python-version: '3.10'
         channels: conda-forge,defaults
-        environment-file: creationbuild_package/environment.yml
+        environment-file: environment.yml
         activate-environment: manimlib-creation
         auto-activate-base: false
         use-mamba: true
@@ -200,8 +215,8 @@ jobs:
       with:
         name: dist-packages
         path: |
-          creationbuild_package/dist/
-          creationbuild_package/conda-dist/
+          ./creationbuild_package/dist/
+          ./creationbuild_package/conda-dist/
 
   publish-conda:
     needs: build-conda
@@ -260,13 +275,18 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
+    - name: Install system dependencies for ManimGL
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ffmpeg libcairo2-dev libpango1.0-dev pkg-config python3-dev libgirepository1.0-dev
+
     - name: Setup Miniconda
       uses: conda-incubator/setup-miniconda@v3
       with:
         auto-update-conda: true
         python-version: '3.10'
         channels: conda-forge,defaults
-        environment-file: creationbuild_package/environment.yml
+        environment-file: environment.yml
         activate-environment: manimlib-creation
         auto-activate-base: false
         use-mamba: true
@@ -295,4 +315,4 @@ jobs:
       if: always()
       with:
         name: security-report
-        path: creationbuild_package/bandit-report.json
+        path: ./creationbuild_package/bandit-report.json

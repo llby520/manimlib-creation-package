@@ -3,6 +3,11 @@
 
 name: Custom Workflow Template
 
+# 全局默认设置
+defaults:
+  run:
+    working-directory: ./creation_package
+
 # 🔧 触发条件配置
 # 根据需要修改以下触发条件
 on:
