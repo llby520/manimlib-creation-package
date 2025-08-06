@@ -30,6 +30,8 @@ jobs:
         environment-file: creationbuild_package/environment.yml
         activate-environment: manimlib-creation
         auto-activate-base: false
+        use-mamba: true
+        mamba-version: "*"
 
     - name: Conda info
       shell: bash -l {0}
@@ -55,8 +57,10 @@ jobs:
 
     - name: Install additional dependencies
       shell: bash -l {0}
+      timeout-minutes: 15
       run: |
-        conda install -c conda-forge pytest flake8 mypy build twine
+        # Use mamba for faster dependency resolution
+        mamba install -c conda-forge pytest flake8 mypy build twine --yes
         # Install pip dependencies if needed
         if [ -f "creationbuild_package/requirements_creation.txt" ]; then
           pip install -r creationbuild_package/requirements_creation.txt
@@ -155,11 +159,14 @@ jobs:
         environment-file: creationbuild_package/environment.yml
         activate-environment: manimlib-creation
         auto-activate-base: false
+        use-mamba: true
+        mamba-version: "*"
 
     - name: Install build dependencies
       shell: bash -l {0}
+      timeout-minutes: 10
       run: |
-        conda install -c conda-forge build twine conda-build anaconda-client
+        mamba install -c conda-forge build twine conda-build anaconda-client --yes
 
     - name: Build Python package
       shell: bash -l {0}
@@ -221,11 +228,14 @@ jobs:
         channels: conda-forge,defaults
         activate-environment: publish
         auto-activate-base: false
+        use-mamba: true
+        mamba-version: "*"
 
     - name: Install publishing tools
       shell: bash -l {0}
+      timeout-minutes: 10
       run: |
-        conda install -c conda-forge anaconda-client twine
+        mamba install -c conda-forge anaconda-client twine --yes
 
     - name: Publish to PyPI
       shell: bash -l {0}
@@ -259,11 +269,14 @@ jobs:
         environment-file: creationbuild_package/environment.yml
         activate-environment: manimlib-creation
         auto-activate-base: false
+        use-mamba: true
+        mamba-version: "*"
 
     - name: Install security tools
       shell: bash -l {0}
+      timeout-minutes: 10
       run: |
-        conda install -c conda-forge safety bandit
+        mamba install -c conda-forge safety bandit --yes
 
     - name: Check dependencies for security vulnerabilities
       shell: bash -l {0}
