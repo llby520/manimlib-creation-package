@@ -8,6 +8,11 @@ numpy>=1.19.0,<3.0.0
 # NumPy是数值计算的核心库，1.19+提供了稳定的API
 # 支持到3.0以确保未来兼容性
 
+# ManimLib 官方依赖
+manimgl>=1.6.1
+# 3Blue1Brown官方ManimGL版本，提供核心动画功能
+# 注意：包名是manimgl，不是manim或manimlib
+
 # Python版本要求 (在setup.py或pyproject.toml中指定)
 # python_requires = ">=3.8"
 
