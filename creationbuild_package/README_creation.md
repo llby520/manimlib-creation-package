@@ -41,8 +41,8 @@
 #### 方法一：从GitHub直接安装
 ```bash
 # 克隆仓库
-git clone https://github.com/llby520/manimLibfuke.git
-cd manimLibfuke/creation_package/creationbuild_package
+git clone https://github.com/llby520/manimlib-creation-package.git
+cd manimlib-creation-package/creationbuild_package
 
 # 安装依赖
 pip install -r requirements_creation.txt
