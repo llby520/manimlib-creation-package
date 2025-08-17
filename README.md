@@ -1,12 +1,15 @@
-# Manimlib Creation Package
+# 🎬 ManimLib Creation Package v1.0.0
 
 [![CI/CD](https://github.com/llby520/manimlib-creation-package/actions/workflows/python-package.yml/badge.svg)](https://github.com/llby520/manimlib-creation-package/actions/workflows/python-package.yml)
 [![Conda CI/CD](https://github.com/llby520/manimlib-creation-package/actions/workflows/python-package-conda.yml/badge.svg)](https://github.com/llby520/manimlib-creation-package/actions/workflows/python-package-conda.yml)
-[![Python Version](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/downloads/)
+[![Python Version](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![PyPI version](https://badge.fury.io/py/manimlib-creation.svg)](https://badge.fury.io/py/manimlib-creation)
+[![Release](https://img.shields.io/github/v/release/llby520/manimlib-creation-package)](https://github.com/llby520/manimlib-creation-package/releases)
 
-**Manimlib Creation Module** - 高级数学动画创建工具包，提供强大的动画创建、对象操作和渲染优化功能。
+**ManimLib Creation Package** - 专为 ManimGL 设计的高级动画创建工具包，提供强大的动画类库、完整的CI/CD支持和优化的开发体验。
+
+> 🎉 **v1.0.0 正式发布！** 这是首个稳定版本，包含完整的动画类库、GitHub Actions CI/CD支持和详细的中文文档。
 
 ## 🚀 快速开始
 
@@ -40,36 +43,76 @@ import creation
 creation._module_self_test()  # 运行自测试
 ```
 
-## 📋 功能特性
+## 🎉 v1.0.0 发布亮点
 
-- **🎨 丰富的动画类型**: 支持多种动画效果和过渡
-- **⚡ 高性能渲染**: 优化的渲染引擎，提升动画生成速度
-- **🔧 灵活的对象操作**: 强大的数学对象创建和操作工具
-- **📊 性能分析**: 内置性能监控和优化建议
-- **🧪 全面测试**: 完整的测试覆盖和质量保证
-- **🔒 类型安全**: 完整的类型注解和 mypy 支持
+- ✅ **首个稳定版本** - 经过全面测试的稳定API
+- ✅ **完整动画类库** - 7个核心动画类，覆盖常用动画需求
+- ✅ **GitHub Actions CI/CD** - 自动化测试、构建和部署
+- ✅ **Conda支持** - 完整的Conda环境配置和包管理
+- ✅ **中文文档** - 详细的中文使用指南和示例
+- ✅ **类型安全** - 完整的类型注解，支持IDE智能提示
+- ✅ **跨平台兼容** - Windows、macOS、Linux全平台支持
+
+## 📋 v1.0.0 核心特性
+
+### 🎨 动画类库
+- **ShowPartial** - 部分显示动画，支持自定义显示比例
+- **ShowCreation** - 创建显示动画，模拟绘制过程
+- **Uncreate** - 反向创建动画，逐步消除对象
+- **Write** - 文字书写动画，逐字符显示文本
+- **ShowIncreasingSubsets** - 递增子集显示动画
+- **ShowSubmobjectsOneByOne** - 逐个显示子对象动画
+- **AddTextWordByWord** - 逐词添加文本动画
+
+### 🛠️ 技术特性
+- **🐍 Python 3.8+** - 广泛的Python版本兼容性
+- **📦 NumPy 1.19+** - 优化的数值计算支持
+- **🔒 类型安全** - 完整的类型注解和 mypy 支持
+- **🧪 全面测试** - 完整的测试覆盖和质量保证
+- **🌐 CI/CD** - GitHub Actions 自动化工作流
+- **📚 中文文档** - 详细的中文使用文档和示例
 
 ## 📖 使用示例
 
+### 基本使用
 ```python
-import creation
+from manimlib import *
+from creation import ShowCreation, Write, ShowPartial
 
-# 创建基本动画对象
-animator = creation.AnimationCreator()
+class MyScene(Scene):
+    def construct(self):
+        # 创建几何对象
+        circle = Circle(radius=2, color=BLUE)
+        square = Square(side_length=2, color=RED)
+        text = Text("Hello ManimLib!", font_size=48)
+        
+        # 使用动画类
+        self.play(ShowCreation(circle))  # 显示创建过程
+        self.play(Write(text))           # 文字书写动画
+        self.play(ShowPartial(square, 0.5))  # 显示一半的正方形
+        self.wait()
+```
 
-# 添加数学对象
-circle = animator.create_circle(radius=2, color="blue")
-text = animator.create_text("Hello Manim!", font_size=48)
+### 高级动画组合
+```python
+from creation import (
+    ShowSubmobjectsOneByOne, 
+    ShowIncreasingSubsets,
+    AddTextWordByWord,
+    Uncreate
+)
 
-# 创建动画序列
-animation = animator.create_animation_sequence([
-    creation.FadeIn(circle),
-    creation.Write(text),
-    creation.Transform(circle, text)
-])
-
-# 渲染动画
-animator.render(animation, output_file="my_animation.mp4")
+class AdvancedScene(Scene):
+    def construct(self):
+        # 创建复杂对象
+        group = VGroup(*[Circle(radius=0.5).shift(i*RIGHT) for i in range(5)])
+        long_text = Text("这是一个逐词显示的文本示例")
+        
+        # 高级动画效果
+        self.play(ShowSubmobjectsOneByOne(group))  # 逐个显示子对象
+        self.play(AddTextWordByWord(long_text))    # 逐词添加文本
+        self.play(Uncreate(group))                 # 反向创建动画
+        self.wait()
 ```
 
 ## 🏗️ 项目结构
